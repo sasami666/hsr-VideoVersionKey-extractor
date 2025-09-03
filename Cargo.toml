@@ -1,0 +1,36 @@
+[package]
+name = "VideoVersionKey-extractor"
+version = "1.0.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+reliquary = { git = "https://github.com/IceDynamix/reliquary", tag = "v13.1.0", features = ["network"] }
+pcap = { version = "2.2.0", optional = true }
+clap = { version = "4.5.31", features = ["derive"] }
+color-eyre = "0.6.3"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tokio = { version = "1.44.2", features = ["full"] }
+protobuf = "=3.7.1"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4"
+base64 = "0.22.1"
+ctrlc = "3.4.5"
+
+[target.'cfg(windows)'.dependencies]
+pktmon = { version = "0.6.1", optional = true }
+windows = { version = "0.52", features = [
+    "Win32_UI_Shell",
+    "Win32_Foundation",
+    "Win32_System_Console",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Registry",
+] }
+
+[features]
+default = ["pcap"]
+pcap = ["dep:pcap"]
+pktmon = ["dep:pktmon"]
