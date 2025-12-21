@@ -18,7 +18,7 @@ mod protos;
 use protos::GetVideoVersionKeyScRsp::GetVideoVersionKeyScRsp;
 
 // From PacketIds.json
-const GET_VIDEO_VERSION_KEY_SC_RSP: u16 = 33;
+const GET_VIDEO_VERSION_KEY_SC_RSP: u16 = 48;
 
 #[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]

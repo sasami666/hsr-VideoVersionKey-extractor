@@ -1,2 +1,2 @@
 pub mod GetVideoVersionKeyScRsp;
-pub mod VideoVersionKey;
+pub mod VideoKeyInfo;
