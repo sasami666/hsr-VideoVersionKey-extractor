@@ -18,7 +18,7 @@ mod protos;
 use protos::GetVideoVersionKeyScRsp::GetVideoVersionKeyScRsp;
 
 // From PacketIds.json
-const GET_VIDEO_VERSION_KEY_SC_RSP: u16 = 48;
+const GET_VIDEO_VERSION_KEY_SC_RSP: u16 = 24;
 
 #[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]
@@ -166,7 +166,7 @@ fn live_capture(args: &Args, mut sniffer: GameSniffer) -> Option<GetVideoVersion
             Ok(packet) => {
                 if let Ok(packets) = sniffer.receive_packet(packet.data) {
                     for packet in packets {
-                        if let GamePacket::Commands(Ok(command)) = packet {
+                        if let GamePacket::Commands { result: Ok(command), .. } = packet {
                             if command.command_id == GET_VIDEO_VERSION_KEY_SC_RSP {
                                 info!("Found GetVideoVersionKeyScRsp packet!");
                                 match command.parse_proto::<GetVideoVersionKeyScRsp>() {
@@ -247,7 +247,7 @@ fn capture_from_etl(
         if let pktmon::PacketPayload::Ethernet(payload) = packet.payload {
             if let Ok(packets) = sniffer.receive_packet(payload) {
                 for packet in packets {
-                    if let GamePacket::Commands(Ok(command)) = packet {
+                    if let GamePacket::Commands { result: Ok(command), .. } = packet {
                         if command.command_id == GET_VIDEO_VERSION_KEY_SC_RSP {
                             info!("Found GetVideoVersionKeyScRsp packet in etl!");
                             return match command.parse_proto::<GetVideoVersionKeyScRsp>() {
