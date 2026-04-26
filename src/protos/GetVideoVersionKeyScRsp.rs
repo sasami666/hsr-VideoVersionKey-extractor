@@ -91,10 +91,10 @@ impl ::protobuf::Message for GetVideoVersionKeyScRsp {
                 40 => {
                     self.retcode = is.read_uint32()?;
                 },
-                98 => {
+                66 => {
                     self.video_key_info_list.push(is.read_message()?);
                 },
-                74 => {
+                50 => {
                     self.activity_video_key_info_list.push(is.read_message()?);
                 },
                 tag => {
@@ -130,10 +130,10 @@ impl ::protobuf::Message for GetVideoVersionKeyScRsp {
             os.write_uint32(5, self.retcode)?;
         }
         for v in &self.video_key_info_list {
-            ::protobuf::rt::write_message_field_with_cached_size(12, v, os)?;
+            ::protobuf::rt::write_message_field_with_cached_size(8, v, os)?;
         };
         for v in &self.activity_video_key_info_list {
-            ::protobuf::rt::write_message_field_with_cached_size(9, v, os)?;
+            ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
         };
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -189,9 +189,10 @@ impl ::protobuf::reflect::ProtobufValue for GetVideoVersionKeyScRsp {
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\x1dGetVideoVersionKeyScRsp.proto\x1a\x12VideoKeyInfo.proto\"\xc0\x01\
     \n\x17GetVideoVersionKeyScRsp\x12\x18\n\x07retcode\x18\x05\x20\x01(\rR\
-    \x07retcode\x12<\n\x13video_key_info_list\x18\x0c\x20\x03(\x0b2\r.VideoK\
-    eyInfoR\x10videoKeyInfoList\x12M\n\x1cactivity_video_key_info_list\x18\t\
-    \x20\x03(\x0b2\r.VideoKeyInfoR\x18activityVideoKeyInfoListb\x06proto3\
+    \x07retcode\x12<\n\x13video_key_info_list\x18\x08\x20\x03(\x0b2\r.VideoK\
+    eyInfoR\x10videoKeyInfoList\x12M\n\x1cactivity_video_key_info_list\x18\
+    \x06\x20\x03(\x0b2\r.VideoKeyInfoR\x18activityVideoKeyInfoListb\x06proto\
+    3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

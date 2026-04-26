@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "VideoVersionKey-extractor"
-version = "6.0.0"
+version = "7.0.0"
 dependencies = [
  "base64",
  "chrono",
@@ -747,7 +747,7 @@ checksum = "caf4aa5b0f434c91fe5c7f1ecb6a5ece2130b02ad2a590589dda5146df959001"
 [[package]]
 name = "reliquary"
 version = "19.0.0"
-source = "git+https://github.com/IceDynamix/reliquary?tag=v19.0.0#1a5c94d6d22b3a1e64749adbc4e97f58cf4b0a91"
+source = "git+https://github.com/IceDynamix/reliquary?tag=v20.0.0#e505b41eaab401861da4bbb00481633b2c8dc5e5"
 dependencies = [
  "base64",
  "etherparse",
@@ -765,7 +765,7 @@ dependencies = [
 [[package]]
 name = "reliquary-proc-macro"
 version = "0.1.1"
-source = "git+https://github.com/IceDynamix/reliquary?tag=v19.0.0#1a5c94d6d22b3a1e64749adbc4e97f58cf4b0a91"
+source = "git+https://github.com/IceDynamix/reliquary?tag=v20.0.0#e505b41eaab401861da4bbb00481633b2c8dc5e5"
 dependencies = [
  "quote",
  "syn",
