@@ -1,27 +1,28 @@
 [package]
 name = "VideoVersionKey-extractor"
-version = "10.0.0"
+version = "10.1.0"
 edition = "2021"
 license = "MIT"
 
 [dependencies]
-reliquary = { git = "https://github.com/IceDynamix/reliquary", tag = "v23.0.0", features = ["network"] }
-pcap = { version = "2.2.0", optional = true }
-clap = { version = "4.5.31", features = ["derive"] }
-color-eyre = "0.6.3"
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-tokio = { version = "1.44.2", features = ["full"] }
+reliquary = { git = "https://github.com/IceDynamix/reliquary", tag = "v23.0.0", default-features = false, features = ["network", "proto-limited"] }
+pcap = { version = "2.5.0", optional = true }
+clap = { version = "4.6.7", features = ["derive"] }
+color-eyre = "0.6.5"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tokio = { version = "1.53.1", features = ["full"] }
 protobuf = "=3.7.1"
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = "0.4"
 base64 = "0.22.1"
-ctrlc = "3.4.5"
+ctrlc = "3.5.2"
+indicatif = "0.17"
 
 [target.'cfg(windows)'.dependencies]
-pktmon = { version = "0.6.1", optional = true }
+pktmon = { version = "0.6.2", optional = true }
 windows = { version = "0.52", features = [
     "Win32_UI_Shell",
     "Win32_Foundation",

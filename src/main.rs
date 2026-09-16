@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use chrono::Local;
 use clap::Parser;
+use indicatif::{ProgressBar, ProgressStyle};
 use reliquary::network::{GamePacket, GameSniffer};
 use tracing::{error, info, instrument, warn};
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
@@ -21,8 +22,12 @@ use protos::GetVideoVersionKeyScRsp::GetVideoVersionKeyScRsp;
 const GET_VIDEO_VERSION_KEY_SC_RSP: u16 = 28;
 
 #[derive(Parser, Debug, Clone)]
-#[command(version, about, long_about = None)]
+#[command(version, about, long_about = None, disable_version_flag = true)]
 struct Args {
+    /// Print version
+    #[arg(short = 'v', short_alias = 'V', long = "version", action = clap::ArgAction::Version)]
+    version: Option<bool>,
+
     /// Path to output .json file to.
     #[arg(short, long)]
     output: Option<PathBuf>,
@@ -68,9 +73,31 @@ impl CaptureMode {
 }
 
 fn main() {
+    // When launched directly via "Run as administrator" from the context menu,
+    // Windows sets the current working directory to C:\Windows\System32 by default.
+    // Change the working directory to the folder containing the executable.
+    if let Ok(exe_path) = env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let _ = env::set_current_dir(exe_dir);
+        }
+    }
+
+    #[cfg(all(windows, feature = "pktmon"))]
+    if !unsafe { windows::Win32::UI::Shell::IsUserAnAdmin().into() } {
+        prompt_for_admin();
+        return;
+    }
+
     color_eyre::install().unwrap();
     let args = Args::parse();
     tracing_init();
+
+    println!("====================================================");
+    println!("    HSR VideoVersionKey Extractor v{}", env!("CARGO_PKG_VERSION"));
+    println!("====================================================\n");
+
+    #[cfg(all(windows, feature = "pktmon"))]
+    println!("✔ Administrative privileges verified (PacketMonitor)");
 
     if let Err(_) = panic::catch_unwind(move || {
         let keys_str = include_str!("../keys/hsr.json");
@@ -99,27 +126,32 @@ fn main() {
         if let Some(data) = video_keys_data {
             let file_path = args.output.unwrap_or_else(|| {
                 let date = Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
-                PathBuf::from(format!("output_{}.json", date))
+                let filename = format!("output_{}.json", date);
+                if let Ok(exe_path) = env::current_exe() {
+                    if let Some(exe_dir) = exe_path.parent() {
+                        return exe_dir.join(filename);
+                    }
+                }
+                PathBuf::from(filename)
             });
 
-            info!("Writing video keys to {}", file_path.display());
             let file = File::create(&file_path).expect("Failed to create output file");
             serde_json::to_writer_pretty(file, &data).expect("Failed to write JSON to file");
-            info!("Successfully saved video keys.");
+            println!("\n✔ Saved video keys to: {}", file_path.display());
         } else {
-            warn!("No video key data was captured. No file written.");
+            println!("\n✖ No video key data was captured. No file written.");
         }
     }) {
-        error!("The application panicked. This is a bug.");
+        eprintln!("\n✖ The application panicked. This is a bug.");
     }
 
-    info!("Press Enter to close...");
+    println!("\nPress Enter to close...");
     std::io::stdin().read_line(&mut String::new()).unwrap();
 }
 
 fn tracing_init() {
     let env_filter = EnvFilter::builder()
-        .with_default_directive("info".parse().unwrap())
+        .with_default_directive("warn".parse().unwrap())
         .from_env_lossy();
 
     let subscriber =
@@ -134,30 +166,34 @@ fn live_capture(args: &Args, mut sniffer: GameSniffer) -> Option<GetVideoVersion
     let rx = {
         #[cfg(all(windows, feature = "pktmon"))]
         {
-            if unsafe { windows::Win32::UI::Shell::IsUserAnAdmin().into() } {
-                capture::listen_on_all(capture::pktmon::PktmonBackend, abort_signal.clone())
-            } else {
-                prompt_for_admin();
-                return None;
-            }
+            capture::listen_on_all(capture::pktmon::PktmonBackend, abort_signal.clone())
         }
         #[cfg(all(windows, feature = "pcap", not(feature = "pktmon")))]
         {
+            println!("✔ Starting packet capture (pcap)");
             capture::listen_on_all(capture::pcap::PcapBackend, abort_signal.clone())
         }
         #[cfg(not(windows))]
         {
+            println!("✔ Starting packet capture (pcap)");
             capture::listen_on_all(capture::pcap::PcapBackend, abort_signal.clone())
         }
     };
 
     let (rx, join_handles) = rx.expect("Failed to start packet capture");
 
-    info!("Starting live capture... Please start the game and log in.");
-    info!(
-        "Waiting for video key data with a timeout of {} seconds...",
-        args.timeout
+    let spinner = ProgressBar::new_spinner();
+    spinner.set_style(
+        ProgressStyle::default_spinner()
+            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+            .template("{spinner:.cyan} {msg}")
+            .unwrap(),
     );
+    spinner.enable_steady_tick(Duration::from_millis(1000));
+    spinner.set_message(format!(
+        "Waiting for game traffic... Please launch the game and log in (Timeout: {}s)",
+        args.timeout
+    ));
 
     let mut result = None;
 
@@ -167,26 +203,52 @@ fn live_capture(args: &Args, mut sniffer: GameSniffer) -> Option<GetVideoVersion
                 if let Ok(packets) = sniffer.receive_packet(packet.data) {
                     for packet in packets {
                         if let GamePacket::Commands { result: Ok(command), .. } = packet {
+                            let cmd_name = command.get_command_name();
+                            let is_relevant = command.command_id == GET_VIDEO_VERSION_KEY_SC_RSP
+                                || cmd_name.map_or(false, |name| {
+                                    name.contains("VideoVersionKey")
+                                        || name.contains("GetToken")
+                                        || name.contains("SecretKey")
+                                });
+
+                            if is_relevant {
+                                let time_str = Local::now().format("%H:%M:%S").to_string();
+                                spinner.println(format!(
+                                    "[{}] [Packet] {} (ID: {}, Data: {} bytes)",
+                                    time_str,
+                                    cmd_name.unwrap_or("Unknown"),
+                                    command.command_id,
+                                    command.data_len
+                                ));
+                            }
+
                             if command.command_id == GET_VIDEO_VERSION_KEY_SC_RSP {
-                                info!("Found GetVideoVersionKeyScRsp packet!");
+                                spinner.finish_and_clear();
+                                println!("✔ Received VideoVersionKey packet!");
                                 match command.parse_proto::<GetVideoVersionKeyScRsp>() {
                                     Ok(data) => {
                                         result = Some(data);
                                     }
-                                    Err(e) => warn!("Failed to parse proto: {}", e),
+                                    Err(e) => {
+                                        eprintln!("✖ Failed to parse proto: {}", e);
+                                    }
                                 }
                                 break 'recv;
+                            } else if cmd_name.map_or(false, |name| name.contains("GetToken")) {
+                                spinner.set_message("Detected login packet! Waiting for VideoVersionKey...");
                             }
                         }
                     }
                 }
             }
             Err(RecvTimeoutError::Timeout) => {
-                warn!("Capture timed out. No video key packet received.");
+                spinner.finish_and_clear();
+                eprintln!("✖ Capture timed out. No video key packet received.");
                 break 'recv;
             }
             Err(RecvTimeoutError::Disconnected) => {
-                error!("Packet channel disconnected.");
+                spinner.finish_and_clear();
+                eprintln!("✖ Packet channel disconnected.");
                 break 'recv;
             }
         }
@@ -214,7 +276,7 @@ fn capture_from_pcap(
     while let Ok(packet) = capture.next_packet() {
         if let Ok(packets) = sniffer.receive_packet(packet.data.to_vec()) {
             for packet in packets {
-                if let GamePacket::Commands(Ok(command)) = packet {
+                if let GamePacket::Commands { result: Ok(command), .. } = packet {
                     if command.command_id == GET_VIDEO_VERSION_KEY_SC_RSP {
                         info!("Found GetVideoVersionKeyScRsp packet in pcap!");
                         return match command.parse_proto::<GetVideoVersionKeyScRsp>() {
