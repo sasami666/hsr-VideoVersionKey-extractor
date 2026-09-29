@@ -19,7 +19,7 @@ mod protos;
 use protos::GetVideoVersionKeyScRsp::GetVideoVersionKeyScRsp;
 
 // From PacketIds.json
-const GET_VIDEO_VERSION_KEY_SC_RSP: u16 = 28;
+const GET_VIDEO_VERSION_KEY_SC_RSP: u16 = 27;
 
 #[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None, disable_version_flag = true)]
@@ -82,22 +82,26 @@ fn main() {
         }
     }
 
-    #[cfg(all(windows, feature = "pktmon"))]
-    if !unsafe { windows::Win32::UI::Shell::IsUserAnAdmin().into() } {
-        prompt_for_admin();
-        return;
-    }
-
     color_eyre::install().unwrap();
     let args = Args::parse();
     tracing_init();
+
+    #[cfg(all(windows, feature = "pktmon"))]
+    if matches!(CaptureMode::from_args(&args), CaptureMode::Live)
+        && !unsafe { windows::Win32::UI::Shell::IsUserAnAdmin().into() }
+    {
+        prompt_for_admin();
+        return;
+    }
 
     println!("====================================================");
     println!("    HSR VideoVersionKey Extractor v{}", env!("CARGO_PKG_VERSION"));
     println!("====================================================\n");
 
     #[cfg(all(windows, feature = "pktmon"))]
-    println!("✔ Administrative privileges verified (PacketMonitor)");
+    if matches!(CaptureMode::from_args(&args), CaptureMode::Live) {
+        println!("✔ Administrative privileges verified (PacketMonitor)");
+    }
 
     if let Err(_) = panic::catch_unwind(move || {
         let keys_str = include_str!("../keys/hsr.json");
